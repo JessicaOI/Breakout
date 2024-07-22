@@ -1,12 +1,12 @@
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
-// #include <SDL_ttf.h>
 #include <SDL_keyboard.h>
 #include <SDL_render.h>
 #include <SDL_scancode.h>
 #include <string>
 #include <iostream>
 #include <vector>
+#include <cmath>
 
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 480;
@@ -23,8 +23,8 @@ const int BLOCK_HEIGHT = 20;
 
 struct Rect {
     SDL_Rect rect = {0, 0, BALL_SIZE, BALL_SIZE};
-    int vx = BALL_SPEED;
-    int vy = BALL_SPEED;
+    float vx = BALL_SPEED;
+    float vy = BALL_SPEED;
     SDL_Color color = {0xFF, 0x00, 0x00, 0xFF}; // Rojo
 };
 
@@ -70,16 +70,6 @@ void renderBlocks(SDL_Renderer* renderer) {
     }
 }
 
-// void renderText(SDL_Renderer* renderer, TTF_Font* font, const char* message, int x, int y) {
-//     SDL_Color color = {0xFF, 0xFF, 0xFF, 0xFF}; // Blanco
-//     SDL_Surface* surface = TTF_RenderText_Solid(font, message, color);
-//     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-//     SDL_Rect dest = {x, y, surface->w, surface->h};
-//     SDL_FreeSurface(surface);
-//     SDL_RenderCopy(renderer, texture, NULL, &dest);
-//     SDL_DestroyTexture(texture);
-// }
-
 void update(float dT, bool& gameOver, bool& youWin) {
     // Rebote en los bordes de la pantalla
     if (ball.rect.x < 0 || ball.rect.x + ball.rect.w > SCREEN_WIDTH) {
@@ -97,9 +87,20 @@ void update(float dT, bool& gameOver, bool& youWin) {
 
     // Rebote con el paddle
     if (SDL_HasIntersection(&ball.rect, &paddle)) {
-        ball.vy *= -1;
-        ball.vx *= -1; // Invertir dirección en X
-        ball.rect.y = paddle.y - ball.rect.h;
+        // Calcular el punto de impacto relativo en el paddle
+        float relativeIntersectX = (ball.rect.x + (BALL_SIZE / 2)) - (paddle.x + (paddle.w / 2));
+        float normalizedRelativeIntersectionX = relativeIntersectX / (paddle.w / 2);
+        float bounceAngle = normalizedRelativeIntersectionX * (M_PI / 4); // Ángulo máximo de 45 grados
+
+        // Ajustar velocidades de la pelota
+        ball.vx = BALL_SPEED * normalizedRelativeIntersectionX;
+        ball.vy = -BALL_SPEED * std::cos(bounceAngle);
+
+        // Aumentar la velocidad de la pelota
+        ball.vx *= 1.1f;
+        ball.vy *= 1.1f;
+
+        ball.rect.y = paddle.y - ball.rect.h; // Asegúrate de que la pelota se mueva hacia arriba después de rebotar
     }
 
     // Colisión con bloques
@@ -108,7 +109,6 @@ void update(float dT, bool& gameOver, bool& youWin) {
         if (!block.destroyed && SDL_HasIntersection(&ball.rect, &block.rect)) {
             block.destroyed = true;
             ball.vy *= -1;
-            ball.vx *= -1; // Invertir dirección en X
             break;
         }
         if (!block.destroyed) {
@@ -146,16 +146,9 @@ int main() {
         return -1;
     }
 
-    // if (TTF_Init() != 0) {
-    //     std::cerr << "Error initializing SDL_ttf: " << TTF_GetError() << std::endl;
-    //     SDL_Quit();
-    //     return -1;
-    // }
-
     SDL_Window* window = SDL_CreateWindow("Bouncing Ball with Paddle", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     if (!window) {
         std::cerr << "Error creating window: " << SDL_GetError() << std::endl;
-        // TTF_Quit();
         SDL_Quit();
         return -1;
     }
@@ -164,20 +157,9 @@ int main() {
     if (!renderer) {
         std::cerr << "Error creating renderer: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window);
-        // TTF_Quit();
         SDL_Quit();
         return -1;
     }
-
-    // TTF_Font* font = TTF_OpenFont("C:/Users/jessi/OneDrive/Escritorio/New folder/sdl/SDL2_ttf-devel-2.20.1-mingw/SDL2_ttf-2.20.1/x86_64-w64-mingw32/bin/arial-font/arial.ttf", 24); // Cambia esto a la ruta correcta de tu archivo de fuente
-    // if (!font) {
-    //     std::cerr << "Error loading font: " << TTF_GetError() << std::endl;
-    //     SDL_DestroyRenderer(renderer);
-    //     SDL_DestroyWindow(window);
-    //     TTF_Quit();
-    //     SDL_Quit();
-    //     return -1;
-    // }
 
     createBlocks();
 
@@ -223,10 +205,6 @@ int main() {
         renderPaddle(renderer, paddle);
         renderBlocks(renderer);
 
-        // if (gameOver) {
-        //     renderText(renderer, font, "Perdiste", SCREEN_WIDTH / 2 - 50, SCREEN_HEIGHT / 2 - 12);
-        // }
-
         SDL_RenderPresent(renderer);
 
         frameEndTimestamp = SDL_GetTicks();
@@ -245,10 +223,8 @@ int main() {
         }
     }
 
-    // TTF_CloseFont(font);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
-    // TTF_Quit();
     SDL_Quit();
 
     return 0;
