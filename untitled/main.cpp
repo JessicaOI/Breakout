@@ -1,5 +1,6 @@
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
+//#include <SDL_ttf.h>
 #include <SDL_keyboard.h>
 #include <SDL_render.h>
 #include <SDL_scancode.h>
@@ -33,7 +34,7 @@ struct Block {
     bool destroyed = false;
 };
 
-Rect ball = {{110, 110, BALL_SIZE, BALL_SIZE}, BALL_SPEED, BALL_SPEED, {0xFF, 0x00, 0x00, 0xFF}};
+Rect ball = {{110, 110, BALL_SIZE, BALL_SIZE}, BALL_SPEED, BALL_SPEED, {0xFF, 0x00, 0x00, 0xFF}};//posicion inicial de la pelota
 SDL_Rect paddle = {SCREEN_WIDTH / 2 - PADDLE_WIDTH / 2, SCREEN_HEIGHT - PADDLE_HEIGHT - 10, PADDLE_WIDTH, PADDLE_HEIGHT};
 std::vector<Block> blocks;
 
@@ -100,7 +101,7 @@ void update(float dT, bool& gameOver, bool& youWin) {
         ball.vx *= 1.1f;
         ball.vy *= 1.1f;
 
-        ball.rect.y = paddle.y - ball.rect.h; // Asegúrate de que la pelota se mueva hacia arriba después de rebotar
+        ball.rect.y = paddle.y - ball.rect.h; // La pelota se mueva hacia arriba después de rebotar
     }
 
     // Colisión con bloques
@@ -140,7 +141,7 @@ void handleInput(float dT) {
 }
 
 int main() {
-    SDL_SetMainReady(); // Call this to properly initialize SDL in non-default environments
+    SDL_SetMainReady(); // Esto se llama para inicializar correctamente SDL en entornos no predeterminados
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         std::cerr << "Error initializing SDL: " << SDL_GetError() << std::endl;
         return -1;
@@ -214,7 +215,7 @@ int main() {
             SDL_Delay(frameDuration - actualFrameDuration);
         }
 
-        // fps calculation
+        // calculo de fps
         Uint32 currentTime = SDL_GetTicks();
         if (currentTime - lastUpdateTime > 1000) {
             FPS = static_cast<int>((1.0f / actualFrameDuration) * 1000.0f);
