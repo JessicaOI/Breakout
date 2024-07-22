@@ -1,5 +1,6 @@
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
+#include <SDL_ttf.h>
 #include <SDL_keyboard.h>
 #include <SDL_render.h>
 #include <SDL_scancode.h>
@@ -35,17 +36,14 @@ void renderPaddle(SDL_Renderer* renderer, SDL_Rect& paddle) {
     SDL_RenderFillRect(renderer, &paddle);
 }
 
-void renderText(SDL_Renderer* renderer, const char* message, int x, int y) {
-    // Render each character as a simple rectangle (this is a placeholder)
-    // In a real scenario, you could load a bitmap font and render it
-    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF); // Blanco
-    int char_width = 8;
-    int char_height = 16;
-    for (const char* p = message; *p; ++p) {
-        SDL_Rect r = {x, y, char_width, char_height};
-        SDL_RenderFillRect(renderer, &r);
-        x += char_width + 2; // Move to the next character position
-    }
+void renderText(SDL_Renderer* renderer, TTF_Font* font, const char* message, int x, int y) {
+    SDL_Color color = {0xFF, 0xFF, 0xFF, 0xFF}; // Blanco
+    SDL_Surface* surface = TTF_RenderText_Solid(font, message, color);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_Rect dest = {x, y, surface->w, surface->h};
+    SDL_FreeSurface(surface);
+    SDL_RenderCopy(renderer, texture, NULL, &dest);
+    SDL_DestroyTexture(texture);
 }
 
 void update(float dT, bool& gameOver) {
@@ -59,11 +57,14 @@ void update(float dT, bool& gameOver) {
 
     // Si la pelota toca la parte inferior de la pantalla
     if (ball.rect.y + ball.rect.h > SCREEN_HEIGHT) {
-        if (SDL_HasIntersection(&ball.rect, &paddle)) {
-            ball.vy *= -1;
-        } else {
-            gameOver = true;
-        }
+        gameOver = true;
+    }
+
+    // Rebote con el paddle
+    if (SDL_HasIntersection(&ball.rect, &paddle)) {
+        ball.vy *= -1;
+        // Asegúrate de que la pelota se mueva hacia arriba después de rebotar
+        ball.rect.y = paddle.y - ball.rect.h;
     }
 
     ball.rect.x += ball.vx * dT;
@@ -86,14 +87,21 @@ void handleInput(float dT) {
 
 int main() {
     SDL_SetMainReady(); // Call this to properly initialize SDL in non-default environments
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         std::cerr << "Error initializing SDL: " << SDL_GetError() << std::endl;
+        return -1;
+    }
+
+    if (TTF_Init() != 0) {
+        std::cerr << "Error initializing SDL_ttf: " << TTF_GetError() << std::endl;
+        SDL_Quit();
         return -1;
     }
 
     SDL_Window* window = SDL_CreateWindow("Bouncing Ball with Paddle", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     if (!window) {
         std::cerr << "Error creating window: " << SDL_GetError() << std::endl;
+        TTF_Quit();
         SDL_Quit();
         return -1;
     }
@@ -102,6 +110,17 @@ int main() {
     if (!renderer) {
         std::cerr << "Error creating renderer: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window);
+        TTF_Quit();
+        SDL_Quit();
+        return -1;
+    }
+
+    TTF_Font* font = TTF_OpenFont("C:/Users/jessi/OneDrive/Escritorio/New folder/sdl/SDL2_ttf-devel-2.20.1-mingw/SDL2_ttf-2.20.1/x86_64-w64-mingw32/bin/arial-font/arial.ttf", 24); // Cambia esto a la ruta correcta de tu archivo de fuente
+    if (!font) {
+        std::cerr << "Error loading font: " << TTF_GetError() << std::endl;
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        TTF_Quit();
         SDL_Quit();
         return -1;
     }
@@ -147,7 +166,7 @@ int main() {
         renderPaddle(renderer, paddle);
 
         if (gameOver) {
-            renderText(renderer, "Perdiste", SCREEN_WIDTH / 2 - 50, SCREEN_HEIGHT / 2 - 12);
+            renderText(renderer, font, "Perdiste", SCREEN_WIDTH / 2 - 50, SCREEN_HEIGHT / 2 - 12);
         }
 
         SDL_RenderPresent(renderer);
@@ -168,8 +187,10 @@ int main() {
         }
     }
 
+    TTF_CloseFont(font);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    TTF_Quit();
     SDL_Quit();
 
     return 0;
